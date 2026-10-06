@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+#
+# Hook commit-msg — validación de Conventional Commits
+#
+# Se activa con:   git config core.hooksPath scripts/git-hooks
+#
+# Rechaza el commit si la primera línea no cumple:
+#   tipo(ámbito)?!: descripción
+#
+# Commits generados por Git (merge, revert, squash!, fixup!) se aceptan
+# sin validar: no los escribe una persona.
+#
+# Para saltarlo a propósito: git commit --no-verify
+
+set -uo pipefail
+
+MSG_FILE="${1:-}"
+[ -f "$MSG_FILE" ] || exit 0
+
+FIRST_LINE="$(head -n 1 "$MSG_FILE")"
+
+# --- Exenciones: commits que genera Git, no una persona -------------------
+case "$FIRST_LINE" in
+  Merge\ *|Revert\ *|squash!*|fixup!*|cherry-pick:*|amend!*)
+    exit 0
+    ;;
+esac
+
+# --- Reglas ---------------------------------------------------------------
+ERRORS=()
+
+# 1. Formato: tipo(ámbito)?!: descripción
+if ! printf '%s' "$FIRST_LINE" | grep -qE \
+  '^(feat|fix|docs|test|refactor|chore|build|ci|perf|style|revert)(\([a-z0-9][a-z0-9._/-]*\))?(!)?: .+$'
+then
+  ERRORS+=(
+    "el mensaje no sigue el formato  tipo(ámbito): descripción"
+  )
+fi
+
+# 2. El tipo debe ser uno de la lista (mensaje más claro que el regex)
+if printf '%s' "$FIRST_LINE" | grep -qE '^[a-zA-Z]+(\([^)]*\))?(!)?:' ; then
+  TYPE="$(printf '%s' "$FIRST_LINE" | sed -E 's/^([a-zA-Z]+).*/\1/')"
+  case "$TYPE" in
+    feat|fix|docs|test|refactor|chore|build|ci|perf|style|revert) ;;
+    *)
+      ERRORS+=(
+        "\"$TYPE\" no es un tipo válido.  Usa uno de:"
+        "  feat fix docs test refactor chore build ci perf style revert"
+      )
+      ;;
+  esac
+fi
+
+# 3. Longitud de la línea de asunto: 72 caracteres (regla de 50/72)
+if [ "${#FIRST_LINE}" -gt 72 ]; then
+  ERRORS+=(
+    "la línea de asunto tiene ${#FIRST_LINE} caracteres (máximo 72)."
+    "  Sugerencia: 50 para el tipo, 72 como límite."
+  )
+fi
+
+# 4. Sin punto final ni mayúscula inicial en la descripción
+DESCRIPTION="$(printf '%s' "$FIRST_LINE" | sed -E 's/^[a-zA-Z]+(\([^)]*\))?(!)?:[[:space:]]*//')"
+if printf '%s' "$DESCRIPTION" | grep -qE '\.$'; then
+  ERRORS+=("la descripción no debe terminar en punto.")
+fi
+
+# --- Resultado ------------------------------------------------------------
+if [ "${#ERRORS[@]}" -eq 0 ]; then
+  exit 0
+fi
+
+{
+  echo ""
+  echo "  Commit rechazado: el mensaje no cumple Conventional Commits."
+  echo ""
+  for e in "${ERRORS[@]}"; do
+    echo "    · $e"
+  done
+  echo ""
+  echo "  Formato:      tipo(ámbito): descripción"
+  echo "  Ejemplos:"
+  echo "    feat(sync): aplica el snapshot completo en una transaccion"
+  echo "    fix(booking): no retrocede un estado final"
+  echo "    feat(api)!: cambia el contrato de disponibilidad"
+  echo "    docs: documenta la estrategia de sincronizacion"
+  echo ""
+  echo "  Tipos:        feat fix docs test refactor chore build ci perf style revert"
+  echo "  Ámbitos:      sync booking app infra kmp docs adrs"
+  echo ""
+  echo "  Referencia:   https://www.conventionalcommits.org/es/v1.0.0/"
+  echo ""
+} >&2
+
+exit 1
