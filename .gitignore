@@ -1,0 +1,45 @@
+# --- Gradle ---
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# --- IntelliJ IDEA ---
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# --- Eclipse / VS Code ---
+.classpath
+.project
+.settings/
+bin/
+.vscode/
+
+# --- Sistema ---
+.DS_Store
+Thumbs.db
+
+# --- Secretos: nunca versionados ---
+# Plantillas sí; valores reales nunca.
+.env
+.env.*
+!.env.example
+
+# Configuración local y Materialized overrides de Spring.
+*.local.yml
+*.local.yaml
+application-local.yml
+application-local.yaml
+
+# Claves y certificados, de cualquier tipo.
+secrets/
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+# Directorio canónico de secretos, por si alguien lo crea dentro del repo.
+.config/

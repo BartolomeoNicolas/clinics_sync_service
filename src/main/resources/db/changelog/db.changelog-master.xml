@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd">
+
+    <!--
+      Copia local del catálogo de la cátedra.
+
+      Los `id` son los de la cátedra, no generados acá: esta base es réplica y la
+      verdad autoritativa está en el servicio central (enunciado §3, H4).
+
+      Las tablas tienen `enabled` y jamás se borra una fila deshabilitada: el
+      enunciado pide que los datos deshabilitados se conserven (§7). La baja es
+      lógica, y la sincronización incremental los tiene que seguir trayendo.
+    -->
+
+    <include file="db/changelog/001-catalog-tables.xml"/>
+    <include file="db/changelog/002-sync-control-tables.xml"/>
+
+</databaseChangeLog>

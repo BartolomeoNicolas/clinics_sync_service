@@ -1,0 +1,49 @@
+# Infraestructura de datos de clinics_sync_service.
+#
+# Levanta SOLO PostgreSQL. El esquema lo crea Liquibase, nunca Hibernate.
+#
+#   docker compose up -d
+#   ./gradlew bootRun     # Liquibase aplica el changelog al arrancar
+#
+# Puerto publicado únicamente en loopback: la base no queda expuesta a la red.
+
+name: clinics-sync
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: clinics-sync-postgres
+    restart: unless-stopped
+    environment:
+      # El usuario inicial es el administrador, NO el de la aplicación.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?definí POSTGRES_ADMIN_PASSWORD en .env}
+      POSTGRES_DB: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+      SYNC_APP_PASSWORD: ${DB_PASSWORD:?definí DB_PASSWORD en .env}
+    volumes:
+      - clinics-sync-pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - clinics-net
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d clinics_sync"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+networks:
+  # Rango disjunto de docker0 (172.17.0.0/16) y de la red de la cátedra
+  # (172.17.201.0/24). Riesgo R4 del plan maestro.
+  clinics-net:
+    name: clinics-sync-net
+    ipam:
+      config:
+        - subnet: 10.90.0.0/16
+
+volumes:
+  clinics-sync-pgdata:
+    name: clinics-sync-pgdata

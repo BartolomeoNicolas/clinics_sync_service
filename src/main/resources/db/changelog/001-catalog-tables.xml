@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd">
+
+    <!-- ================================================================
+         professional_category · professional · weekly_schedule
+         Los nombres y tipos siguen el snapshot de la cátedra
+         (INTEGRATION_REFERENCE §7).
+         ================================================================ -->
+
+    <changeSet id="001-01-professional-category" author="nicobartok0">
+        <createTable tableName="professional_category">
+            <column name="id" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="pk_professional_category"
+                             nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(120)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="enabled" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="001-02-professional" author="nicobartok0">
+        <createTable tableName="professional">
+            <column name="id" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="pk_professional"
+                             nullable="false"/>
+            </column>
+            <column name="category_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="first_name" type="VARCHAR(80)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_name" type="VARCHAR(80)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="enabled" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="professional" baseColumnNames="category_id"
+                constraintName="fk_professional_category"
+                referencedTableName="professional_category" referencedColumnNames="id"/>
+
+        <!-- Índices de los filtros obligatorios (SYNC-M1-06): categoría,
+             estado habilitado, y búsqueda por nombre. -->
+        <createIndex indexName="idx_professional_category" tableName="professional">
+            <column name="category_id"/>
+        </createIndex>
+        <createIndex indexName="idx_professional_enabled" tableName="professional">
+            <column name="enabled"/>
+        </createIndex>
+        <createIndex indexName="idx_professional_last_name" tableName="professional">
+            <column name="last_name"/>
+            <column name="first_name"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="001-03-weekly-schedule" author="nicobartok0">
+        <createTable tableName="weekly_schedule">
+            <column name="id" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="pk_weekly_schedule"
+                             nullable="false"/>
+            </column>
+            <column name="professional_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <!-- La cátedra admite MONDAY..SUNDAY (INTEGRATION_REFERENCE §7). -->
+            <column name="day_of_week" type="VARCHAR(9)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="start_time" type="TIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="end_time" type="TIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="slot_duration_minutes" type="INTEGER" defaultValueNumeric="30">
+                <constraints nullable="false"/>
+            </column>
+            <column name="enabled" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="weekly_schedule" baseColumnNames="professional_id"
+                constraintName="fk_weekly_schedule_professional"
+                referencedTableName="professional" referencedColumnNames="id"/>
+
+        <!-- La agenda vigente la consulta el servicio de turnos
+             (GET /api/catalog/professionals/{id}/weekly-schedules). -->
+        <createIndex indexName="idx_weekly_schedule_professional" tableName="weekly_schedule">
+            <column name="professional_id"/>
+        </createIndex>
+        <createIndex indexName="idx_weekly_schedule_enabled" tableName="weekly_schedule">
+            <column name="enabled"/>
+        </createIndex>
+
+        </changeSet>
+
+    <changeSet id="001-04-schedule-checks" author="nicobartok0">
+        <!--
+          Un turno no puede terminar antes de empezar, ni tener duración cero, ni
+          un día fuera de la enumeración del contrato.
+
+          Van con SQL y no con `addCheckConstraint` porque ese elemento no existe en
+          la edición community de Liquibase (es una función Pro) y el XSD de la 5.0
+          lo rechaza: la app no levanta.
+        -->
+        <sql>
+            ALTER TABLE weekly_schedule
+                ADD CONSTRAINT ck_weekly_schedule_times CHECK (start_time &lt; end_time);
+            ALTER TABLE weekly_schedule
+                ADD CONSTRAINT ck_weekly_schedule_slot CHECK (slot_duration_minutes &gt; 0);
+            ALTER TABLE weekly_schedule
+                ADD CONSTRAINT ck_weekly_schedule_day CHECK (
+                    day_of_week IN ('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY',
+                                    'FRIDAY', 'SATURDAY', 'SUNDAY')
+                );
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

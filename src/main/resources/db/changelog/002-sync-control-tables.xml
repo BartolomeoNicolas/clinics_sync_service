@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-5.0.xsd">
+
+    <!-- ================================================================
+         Control de la sincronización: versión aplicada, idempotencia de
+         eventos y registro de errores.
+
+         Estas tablas NO son una réplica del catálogo: son estado propio del
+         servicio de sincronización.
+         ================================================================ -->
+
+    <changeSet id="002-01-catalog-version" author="nicobartok0">
+        <!--
+          Historial de versiones aplicadas, no un singleton. Guardar solo la
+          última versión perdería la capacidad de detectar una discontinuidad
+          (SYNC-M1-04): hace falta ver qué ventana se aplicó.
+        -->
+        <createTable tableName="catalog_version">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_catalog_version"
+                             nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uq_catalog_version_version"/>
+            </column>
+            <column name="source" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="snapshot_generated_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="applied_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="002-04-catalog-version-source-check" author="nicobartok0">
+        <!--
+          La enumerated queda acotada con SQL: `addCheckConstraint` es función Pro
+          y no existe en el XSD de la edición community.
+        -->
+        <sql>
+            ALTER TABLE catalog_version
+                ADD CONSTRAINT ck_catalog_version_source
+                CHECK (source IN ('SNAPSHOT', 'INCREMENTAL'));
+        </sql>
+    </changeSet>
+
+    <changeSet id="002-02-processed-event" author="nicobartok0">
+        <!--
+          Idempotencia. `event_id` es la clave funcional: Kafka entrega al
+          menos una vez y el mismo evento puede repetirse (INTEGRATION_REFERENCE §5,
+          anexo §16). La clave primaria es lo que impide el segundo efecto.
+        -->
+        <createTable tableName="processed_event">
+            <column name="event_id" type="VARCHAR(128)">
+                <constraints primaryKey="true" primaryKeyName="pk_processed_event"
+                             nullable="false"/>
+            </column>
+            <column name="schema_version" type="INTEGER" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="applied_version" type="BIGINT"/>
+            <column name="received_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="002-03-sync-error" author="nicobartok0">
+        <!--
+          Errores consultables sin tocar la base por otros medios
+          (SYNC-M1-07). `detail` es texto libre a propósito: es un log, no
+          una respuesta de API, y no se expone al cliente final.
+        -->
+        <createTable tableName="sync_error">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_sync_error"
+                             nullable="false"/>
+            </column>
+            <column name="occurred_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="kind" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attempted_version" type="BIGINT"/>
+            <column name="message" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="detail" type="TEXT"/>
+        </createTable>
+
+        <createIndex indexName="idx_sync_error_occurred_at" tableName="sync_error">
+            <column name="occurred_at"/>
+        </createIndex>
+        <createIndex indexName="idx_sync_error_kind" tableName="sync_error">
+            <column name="kind"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
