@@ -29,6 +29,9 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.liquibase:liquibase-core")
+    // En Boot 4 la autoconfiguracion de Liquibase vive en su propio modulo.
+    // Con solo liquibase-core la app levanta pero NO aplica nada.
+    implementation("org.springframework.boot:spring-boot-liquibase")
 
     // --- integración con la cátedra ---------------------------------------
     implementation("org.springframework.boot:spring-boot-starter-kafka")

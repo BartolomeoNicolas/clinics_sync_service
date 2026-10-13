@@ -48,18 +48,22 @@ spring:
     # Sin default a propósito. La validación de clinics.local.db-password es la que
     # hace fallar el arranque nombrando la variable que falta.
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:clinics_sync}
-    username: ${DB_USER:postgres}
+    username: ${DB_USER:sync_app}
     password: ${clinics.local.db-password}
     hikari:
       maximum-pool-size: 10
   jpa:
     hibernate:
-      # El esquema es de Liquibase, nunca de Hibernate. Vease SYNC-M0-03.
+      # El esquema es de Liquibase, nunca de Hibernate.
       ddl-auto: none
     open-in-view: false
   liquibase:
-    # Sin changelogs todavia: los agrega SYNC-M0-03.
-    enabled: false
+    # Aplicado en el arranque. Ver db/changelog/db.changelog-master.xml.
+    # OJO: no poner `contexts` acá. En Liquibase eso FILTRA los changesets que
+    # no lleven esa etiqueta, en vez de activarlos: la app levanta sin error y
+    # no crea ninguna tabla.
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.xml
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -94,7 +98,7 @@ spring:
       on-profile: test
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:clinics_sync_test}
-    username: ${DB_USER:postgres}
+    username: ${DB_USER:sync_app}
     password: ${clinics.local.db-password}
   jpa:
     hibernate:
