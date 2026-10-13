@@ -1,13 +1,26 @@
-# Configuración base de clinics_sync_service.
+# clinics_sync_service
 #
-# Los secretos NO van acá. A partir de SYNC-M0-02 se leen del entorno y de
-# ~/.config/clinics/secrets/ (enunciado §5, H9).
+# REGLA DE ESTE ARCHIVO: no contiene ningún secreto. Solo placeholders.
+# Los valores reales entran por spring.config.import, desde .env o desde
+# ~/.config/clinics/secrets/sync.yml. Ver .env.example.
+#
+# Criterio de arranque: si falta un secreto requerido, la app NO arranca y el
+# error nombra la variable que falta.
 
 spring:
   application:
     name: clinics-sync-service
   profiles:
     default: dev
+
+  config:
+    import:
+      # .env local del repo, leído como properties. "optional" porque el archivo
+      # puede no existir: lo que falla después es el placeholder sin default.
+      - "optional:file:.env[.properties]"
+      # Ubicación canónica, fuera del repo. CLINICS_SECRETS_DIR la sobreescribe.
+      - "optional:file:${CLINICS_SECRETS_DIR:${user.home}/.config/clinics/secrets}/sync.yml"
+      - "optional:file:${CLINICS_SECRETS_DIR:${user.home}/.config/clinics/secrets}/sync.yaml"
 
 server:
   port: 8081
@@ -32,9 +45,13 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:postgresql://localhost:5432/clinics_sync
-    username: postgres
-    password: postgres
+    # Sin default a propósito. La validación de clinics.local.db-password es la que
+    # hace fallar el arranque nombrando la variable que falta.
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:clinics_sync}
+    username: ${DB_USER:postgres}
+    password: ${clinics.local.db-password}
+    hikari:
+      maximum-pool-size: 10
   jpa:
     hibernate:
       # El esquema es de Liquibase, nunca de Hibernate. Vease SYNC-M0-03.
@@ -45,8 +62,25 @@ spring:
     enabled: false
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+# Secretos locales. La validación (@NotBlank) hace que falte uno rompa el arranque.
+clinics:
+  local:
+    db-password: ${DB_PASSWORD:}
+  catedra:
+    base-url: ${CATEDRA_BASE_URL:http://172.17.201.1:8090}
+    group-id: ${CATEDRA_GROUP_ID:nicobartok0-prog2}
+    # Vienen de POST /api/student/register. Quedan vacias hasta registrar la cuenta.
+    technical-user: ${CATEDRA_TECHNICAL_USER:}
+    technical-password: ${CATEDRA_TECHNICAL_PASSWORD:}
+    redis-host: ${CATEDRA_REDIS_HOST:172.17.201.1}
+    redis-port: ${CATEDRA_REDIS_PORT:6379}
+    redis-username: ${CATEDRA_REDIS_USERNAME:}
+    redis-password: ${CATEDRA_REDIS_PASSWORD:}
+    # PENDING | PROVISIONED | FAILED | REVOKED
+    provisioning-status: ${CATEDRA_PROVISIONING_STATUS:PENDING}
 
 logging:
   level:
@@ -59,16 +93,28 @@ spring:
     activate:
       on-profile: test
   datasource:
-    # Lo reemplaza el contenedor de Testcontainers que se levanta en los tests.
-    url: jdbc:postgresql://localhost:5432/clinics_sync_test
-    username: postgres
-    password: postgres
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:clinics_sync_test}
+    username: ${DB_USER:postgres}
+    password: ${clinics.local.db-password}
   jpa:
     hibernate:
       ddl-auto: none
     open-in-view: false
   liquibase:
     enabled: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+clinics:
+  local:
+    db-password: ${DB_PASSWORD:}
+  catedra:
+    # En tests la cátedra se reemplaza por WireMock (PLAN.md §10).
+    base-url: http://localhost:${CATEDRA_WIREMOCK_PORT:18080}
+    group-id: test-group
+    provisioning-status: PROVISIONED
 
 logging:
   level:
