@@ -50,10 +50,12 @@ dependencies {
     // --- tests ------------------------------------------------------------
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
-    testImplementation("org.testcontainers:junit-jupiter:2.0.5")
-    testImplementation("org.testcontainers:postgresql:2.0.5")
+    // En Boot 4, @AutoConfigureMockMvc viene en su propio starter de test web.
+    testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+    // Testcontainers 2 renombró todos los módulos con prefijo `testcontainers-`.
+    // Los nombres viejos (`org.testcontainers:junit-jupiter`, `:postgresql`) dan 404.
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.5")
     testImplementation("org.testcontainers:testcontainers-postgresql:2.0.5")
-    testImplementation("org.testcontainers:kafka:2.0.5")
     testImplementation("org.testcontainers:testcontainers-kafka:2.0.5")
 }
 

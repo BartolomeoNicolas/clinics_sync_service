@@ -44,6 +44,80 @@ La documentación OpenAPI, cuando se abra la seguridad: `/swagger-ui.html`.
 `src/main/resources/application.yml`, con perfiles `dev` y `test`.
 **Los secretos no van en el repo**: se externalizan a `~/.config/clinics/secrets/` (M0-02).
 
+Todas las variables están documentadas en `.env.example`:
+
+```bash
+cp .env.example .env && chmod 600 .env
+docker compose up -d      # levanta PostgreSQL 16
+./gradlew bootRun         # Liquibase aplica el esquema al arrancar
+```
+
+### Base de datos
+
+`docker compose up -d` levanta PostgreSQL 16 con volumen nombrado, red propia en
+`10.90.0.0/16` y puerto publicado **solo en loopback**. El usuario de la aplicación
+(`sync_app`) no es superusuario y solo puede conectarse a `clinics_sync`.
+
+El esquema lo crea Liquibase desde `src/main/resources/db/changelog/` en cada arranque.
+Hibernate está en `ddl-auto: none` y no toca el esquema.
+
+### JWT
+
+Este servicio es **resource server**: valida los tokens que emite el de turnos, con RS256,
+firma, vigencia y audiencia. No emite ninguno, y no tiene la clave privada.
+
+La clave pública se lee de una ruta **fuera del repo**, vía `CLINICS_JWT_PUBLIC_KEY_PATH`.
+
+## Errores
+
+Todo error sale en `application/problem+json`. El cliente decide por **`status` + `code`**,
+nunca por `detail`: ese puede contener nombres internos y puede cambiar de texto sin romper
+a nadie.
+
+```json
+{
+  "type": "https://dqmdz-um.github.io/prog2/clinics/problems/catalog-unavailable",
+  "title": "Catálogo no disponible",
+  "status": 503,
+  "detail": "El catálogo local todavía no está disponible.",
+  "path": "/api/catalog/professionals",
+  "message": "Catálogo no disponible",
+  "code": "catalog-unavailable",
+  "timestamp": "2026-10-13T15:45:29.760653702Z"
+}
+```
+
+En una validación fallida, `fieldErrors` lista los campos con su mensaje:
+
+```json
+"fieldErrors": [
+  { "field": "name", "message": "no debe estar en blanco", "rejectedValue": "" }
+]
+```
+
+### Tabla de códigos
+
+| `code` | Status | Cuándo |
+|---|---|---|
+| `validation-error` | 400 | Faltan campos o tienen un formato inválido |
+| `unauthenticated` | 401 | No vino token, o su firma o audiencia no son válidas |
+| `token-expired` | 401 | El token era válido pero venció |
+| `forbidden` | 403 | Autenticado, sin permiso sobre el recurso |
+| `not-found` | 404 | Ruta inexistente |
+| `conflict` | 409 | Conflicto de estado |
+| `internal-error` | 500 | Error no previsto. **No incluye detalles internos** |
+| `catedra-unavailable` | 502 | La cátedra no respondió o respondió algo ilegible |
+| `catalog-unavailable` | 503 | El catálogo local no puede responder |
+| `sync-discontinuity` | 503 | La versión local no conecta con la ventana disponible |
+
+Los códigos son **contrato**: no se renombran. Si aparece un fallo que no está en la tabla,
+falta agregarlo, no improvisar un texto nuevo.
+
+El enum vive en `application/exception/ErrorCode` —el código del error lo define el
+dominio— y el status con el que se responde en
+`infrastructure/web/exception/ErrorStatusMapper`. Esa separación es la que mantiene la
+regla de que `application` no dependa de `infrastructure`.
+
 ## Convenciones de commits
 
 Los commits siguen [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/):
