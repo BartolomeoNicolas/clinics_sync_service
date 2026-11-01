@@ -128,6 +128,16 @@ clinics:
     group-id: test-group
     provisioning-status: PROVISIONED
 
+management:
+  # En tests no corre ningún Redis (el compose del sync solo levanta Postgres) y el
+  # plan prohíbe que un test dependa de Docker (§10). Con el contributor activo,
+  # /actuator/health devolvía 503 y los tests de seguridad fallaban por un servicio
+  # que no es lo que prueban. En dev y prod el contributor queda tal cual: si Redis
+  # está caído, la salud tiene que decirlo.
+  health:
+    redis:
+      enabled: false
+
 logging:
   level:
     com.bartolomeo.clinics: INFO
