@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import com.bartolomeo.clinics.sync.sync.domain.model.ProvisioningStatus;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -55,6 +56,17 @@ public class CatedraProperties {
 
     /** Contraseña del usuario técnico. Llega con el registro de la cuenta. */
     private String technicalPassword;
+
+    /**
+     * JWT técnico entregado por {@code POST /api/student/register}, guardado en el almacén de
+     * secretos junto con las credenciales.
+     *
+     * <p>Es opcional, y por dos razones: la cuenta todavía no existe antes de registrarla, y
+     * aunque exista el token se puede recuperar con {@code POST /api/authenticate}. Si está y
+     * sigue vigente, ahorra ese login; si no está o venció, el adaptador pide uno nuevo. El
+     * token renovado se queda solo en memoria: nunca se escribe de vuelta al almacén.
+     */
+    private String technicalJwt;
 
     /** Host del Redis de la cátedra. */
     @NotBlank

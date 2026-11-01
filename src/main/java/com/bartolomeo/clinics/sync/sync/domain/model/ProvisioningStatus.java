@@ -1,4 +1,4 @@
-package com.bartolomeo.clinics.sync.infrastructure.catedra;
+package com.bartolomeo.clinics.sync.sync.domain.model;
 
 /**
  * Estado de aprovisionamiento de la cuenta técnica de la cátedra.

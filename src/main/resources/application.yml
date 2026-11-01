@@ -87,6 +87,9 @@ clinics:
     # Vienen de POST /api/student/register. Quedan vacias hasta registrar la cuenta.
     technical-user: ${CATEDRA_TECHNICAL_USER:}
     technical-password: ${CATEDRA_TECHNICAL_PASSWORD:}
+    # JWT tecnico que entrego el registro. Opcional: si no esta, o vencio, el
+    # adaptador pide uno nuevo con POST /api/authenticate.
+    technical-jwt: ${CATEDRA_TECHNICAL_JWT:}
     redis-host: ${CATEDRA_REDIS_HOST:172.17.201.1}
     redis-port: ${CATEDRA_REDIS_PORT:6379}
     redis-username: ${CATEDRA_REDIS_USERNAME:}

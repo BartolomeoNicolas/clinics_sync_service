@@ -107,6 +107,7 @@ En una validación fallida, `fieldErrors` lista los campos con su mensaje:
 | `conflict` | 409 | Conflicto de estado |
 | `internal-error` | 500 | Error no previsto. **No incluye detalles internos** |
 | `catedra-unavailable` | 502 | La cátedra no respondió o respondió algo ilegible |
+| `catedra-rejected` | 503 | La cátedra rechazó nuestras credenciales técnicas. Un reintento no lo arregla: hay que corregirlas |
 | `catalog-unavailable` | 503 | El catálogo local no puede responder |
 | `sync-discontinuity` | 503 | La versión local no conecta con la ventana disponible |
 

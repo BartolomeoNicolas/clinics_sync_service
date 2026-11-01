@@ -28,6 +28,9 @@ public final class ErrorStatusMapper {
             Map.entry(ErrorCode.CONFLICT, HttpStatus.CONFLICT),
             Map.entry(ErrorCode.INTERNAL_ERROR, HttpStatus.INTERNAL_SERVER_ERROR),
             Map.entry(ErrorCode.CATEDRA_UNAVAILABLE, HttpStatus.BAD_GATEWAY),
+            // El cliente no puede hacer nada con credenciales nuestras rechazadas: mientras un
+            // operador no las corrija, esa operación sigue sin poderse hacer.
+            Map.entry(ErrorCode.CATEDRA_REJECTED, HttpStatus.SERVICE_UNAVAILABLE),
             Map.entry(ErrorCode.CATALOG_UNAVAILABLE, HttpStatus.SERVICE_UNAVAILABLE),
             Map.entry(ErrorCode.SYNC_DISCONTINUITY, HttpStatus.SERVICE_UNAVAILABLE));
 

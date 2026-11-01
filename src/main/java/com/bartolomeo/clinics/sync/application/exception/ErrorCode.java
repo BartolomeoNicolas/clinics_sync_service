@@ -48,6 +48,16 @@ public enum ErrorCode {
     /** La cátedra no respondió, o respondió algo que no se pudo entender. */
     CATEDRA_UNAVAILABLE("catedra-unavailable", "Servicio de la cátedra no disponible"),
 
+    /**
+     * La cátedra respondió, pero rechazó nuestras credenciales técnicas (401 en
+     * {@code /api/authenticate}).
+     *
+     * <p>Se distingue de {@link #CATEDRA_UNAVAILABLE} a propósito: esa es un problema de red o
+     * del otro lado, y este es del operador. Reintentar no arregla este, hay que corregir las
+     * credenciales; por eso el cliente puede tratarlos distinto.
+     */
+    CATEDRA_REJECTED("catedra-rejected", "Credenciales técnicas rechazadas por la cátedra"),
+
     /** El catálogo local no está en un estado que permita responder. */
     CATALOG_UNAVAILABLE("catalog-unavailable", "Catálogo no disponible"),
 
