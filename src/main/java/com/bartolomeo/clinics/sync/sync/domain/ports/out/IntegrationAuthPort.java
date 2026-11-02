@@ -35,7 +35,7 @@ public interface IntegrationAuthPort {
      * puerto no tienen por qué saberlo.
      *
      * @return la integración atada al JWT técnico actual. Nunca {@code null}.
-     * @throws com.bartolomeo.clinics.sync.application.exception.ApplicationException si la
+     * @throws com.bartolomeo.clinics.sync.shared.application.exception.ApplicationException si la
      *         cátedra rechaza las credenciales o no se puede entender su respuesta
      */
     IntegrationConfig currentIntegration();

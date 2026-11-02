@@ -1,4 +1,4 @@
-package com.bartolomeo.clinics.sync.application.exception;
+package com.bartolomeo.clinics.sync.shared.application.exception;
 
 /**
  * La cátedra no respondió, o respondió algo que no se pudo entender.

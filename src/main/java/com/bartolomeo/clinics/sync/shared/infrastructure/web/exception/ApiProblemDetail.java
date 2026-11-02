@@ -1,4 +1,4 @@
-package com.bartolomeo.clinics.sync.infrastructure.web.exception;
+package com.bartolomeo.clinics.sync.shared.infrastructure.web.exception;
 
 import java.time.Instant;
 import java.util.List;

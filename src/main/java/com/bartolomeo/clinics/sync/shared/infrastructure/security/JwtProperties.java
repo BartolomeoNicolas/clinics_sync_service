@@ -1,4 +1,4 @@
-package com.bartolomeo.clinics.sync.infrastructure.security;
+package com.bartolomeo.clinics.sync.shared.infrastructure.security;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;

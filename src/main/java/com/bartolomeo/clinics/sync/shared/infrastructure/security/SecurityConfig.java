@@ -1,4 +1,4 @@
-package com.bartolomeo.clinics.sync.infrastructure.security;
+package com.bartolomeo.clinics.sync.shared.infrastructure.security;
 
 import java.io.IOException;
 import java.nio.file.Files;

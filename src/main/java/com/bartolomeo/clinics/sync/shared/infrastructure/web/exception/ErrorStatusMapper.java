@@ -1,8 +1,8 @@
-package com.bartolomeo.clinics.sync.infrastructure.web.exception;
+package com.bartolomeo.clinics.sync.shared.infrastructure.web.exception;
 
 import java.util.Map;
 
-import com.bartolomeo.clinics.sync.application.exception.ErrorCode;
+import com.bartolomeo.clinics.sync.shared.application.exception.ErrorCode;
 import org.springframework.http.HttpStatus;
 
 /**

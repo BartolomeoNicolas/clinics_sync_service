@@ -1,12 +1,12 @@
-package com.bartolomeo.clinics.sync.infrastructure.catedra;
+package com.bartolomeo.clinics.sync.sync.infrastructure.catedra;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 
-import com.bartolomeo.clinics.sync.application.exception.CatedraRejectedException;
-import com.bartolomeo.clinics.sync.application.exception.CatedraUnavailableException;
+import com.bartolomeo.clinics.sync.shared.application.exception.CatedraRejectedException;
+import com.bartolomeo.clinics.sync.shared.application.exception.CatedraUnavailableException;
 import com.bartolomeo.clinics.sync.sync.domain.model.IntegrationConfig;
 import com.bartolomeo.clinics.sync.sync.domain.model.ProvisioningStatus;
 import com.bartolomeo.clinics.sync.sync.domain.ports.out.IntegrationAuthPort;

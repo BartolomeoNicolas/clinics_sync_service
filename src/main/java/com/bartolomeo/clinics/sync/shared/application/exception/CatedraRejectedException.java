@@ -1,4 +1,4 @@
-package com.bartolomeo.clinics.sync.application.exception;
+package com.bartolomeo.clinics.sync.shared.application.exception;
 
 /**
  * La cátedra rechazó las credenciales técnicas de esta cuenta (401 en

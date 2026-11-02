@@ -1,4 +1,4 @@
-package com.bartolomeo.clinics.sync.infrastructure.catedra;
+package com.bartolomeo.clinics.sync.sync.infrastructure.catedra;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;

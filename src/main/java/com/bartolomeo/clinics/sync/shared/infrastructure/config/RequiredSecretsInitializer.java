@@ -1,4 +1,4 @@
-package com.bartolomeo.clinics.sync.infrastructure.config;
+package com.bartolomeo.clinics.sync.shared.infrastructure.config;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

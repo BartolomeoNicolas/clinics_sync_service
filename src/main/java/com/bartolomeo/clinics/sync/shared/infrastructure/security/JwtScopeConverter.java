@@ -1,4 +1,4 @@
-package com.bartolomeo.clinics.sync.infrastructure.security;
+package com.bartolomeo.clinics.sync.shared.infrastructure.security;
 
 import java.util.Collection;
 import java.util.List;

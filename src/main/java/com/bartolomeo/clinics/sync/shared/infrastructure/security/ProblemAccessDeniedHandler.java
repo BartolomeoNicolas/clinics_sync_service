@@ -1,12 +1,12 @@
-package com.bartolomeo.clinics.sync.infrastructure.security;
+package com.bartolomeo.clinics.sync.shared.infrastructure.security;
 
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 
-import com.bartolomeo.clinics.sync.application.exception.ErrorCode;
-import com.bartolomeo.clinics.sync.infrastructure.web.exception.ErrorStatusMapper;
-import com.bartolomeo.clinics.sync.infrastructure.web.exception.ApiProblemDetail;
+import com.bartolomeo.clinics.sync.shared.application.exception.ErrorCode;
+import com.bartolomeo.clinics.sync.shared.infrastructure.web.exception.ErrorStatusMapper;
+import com.bartolomeo.clinics.sync.shared.infrastructure.web.exception.ApiProblemDetail;
 import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

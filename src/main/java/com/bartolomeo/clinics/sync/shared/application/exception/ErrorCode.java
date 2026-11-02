@@ -1,4 +1,4 @@
-package com.bartolomeo.clinics.sync.application.exception;
+package com.bartolomeo.clinics.sync.shared.application.exception;
 
 /**
  * Identidad estable de cada tipo de error.

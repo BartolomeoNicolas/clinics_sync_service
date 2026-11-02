@@ -1,10 +1,10 @@
-package com.bartolomeo.clinics.sync.infrastructure.web.exception;
+package com.bartolomeo.clinics.sync.shared.infrastructure.web.exception;
 
 import java.time.Instant;
 import java.util.List;
 
-import com.bartolomeo.clinics.sync.application.exception.ApplicationException;
-import com.bartolomeo.clinics.sync.application.exception.ErrorCode;
+import com.bartolomeo.clinics.sync.shared.application.exception.ApplicationException;
+import com.bartolomeo.clinics.sync.shared.application.exception.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
