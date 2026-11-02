@@ -1,4 +1,4 @@
-package com.bartolomeo.clinics.sync.sync.infrastructure.catedra;
+package com.bartolomeo.clinics.sync.shared.infrastructure.catedra;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

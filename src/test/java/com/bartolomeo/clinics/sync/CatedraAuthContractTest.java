@@ -21,7 +21,7 @@ import java.util.Base64;
 import com.bartolomeo.clinics.sync.shared.application.exception.ApplicationException;
 import com.bartolomeo.clinics.sync.shared.application.exception.ErrorCode;
 import com.bartolomeo.clinics.sync.sync.infrastructure.catedra.CatedraIntegrationAuthAdapter;
-import com.bartolomeo.clinics.sync.sync.infrastructure.catedra.CatedraProperties;
+import com.bartolomeo.clinics.sync.shared.infrastructure.catedra.CatedraProperties;
 import com.bartolomeo.clinics.sync.sync.domain.model.IntegrationConfig;
 import com.bartolomeo.clinics.sync.sync.domain.model.ProvisioningStatus;
 import com.github.tomakehurst.wiremock.WireMockServer;

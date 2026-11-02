@@ -7,6 +7,10 @@ import java.util.Base64;
 
 import com.bartolomeo.clinics.sync.shared.application.exception.CatedraRejectedException;
 import com.bartolomeo.clinics.sync.shared.application.exception.CatedraUnavailableException;
+import com.bartolomeo.clinics.sync.shared.infrastructure.catedra.CatedraProperties;
+import com.bartolomeo.clinics.sync.shared.infrastructure.catedra.CatedraRedisSettings;
+import com.bartolomeo.clinics.sync.shared.infrastructure.catedra.CatedraRedisSettingsSource;
+import com.bartolomeo.clinics.sync.shared.infrastructure.catedra.CatedraTokenSource;
 import com.bartolomeo.clinics.sync.sync.domain.model.IntegrationConfig;
 import com.bartolomeo.clinics.sync.sync.domain.model.ProvisioningStatus;
 import com.bartolomeo.clinics.sync.sync.domain.ports.out.IntegrationAuthPort;
@@ -60,7 +64,8 @@ import tools.jackson.databind.ObjectMapper;
  * caché que quedó vieja tras un reinicio, y cuesta un request que de todos modos iba a fallar.
  */
 @Component
-public class CatedraIntegrationAuthAdapter implements IntegrationAuthPort {
+public class CatedraIntegrationAuthAdapter
+        implements IntegrationAuthPort, CatedraTokenSource, CatedraRedisSettingsSource {
 
     private static final String AUTHENTICATE_PATH = "/api/authenticate";
     private static final String INTEGRATION_PATH = "/api/student/integration";
@@ -105,13 +110,71 @@ public class CatedraIntegrationAuthAdapter implements IntegrationAuthPort {
 
     @Override
     public IntegrationConfig currentIntegration() {
+        return usableSession().integration();
+    }
+
+    @Override
+    public String currentToken() {
+        return usableSession().token();
+    }
+
+    /**
+     * Proyecta la parte de Redis de la configuración vigente.
+     *
+     * <p>No agrega información: la copia campo por campo desde {@link IntegrationConfig} para
+     * que el lector Redis de {@code catalog} pueda conectar sin importar los tipos del dominio
+     * de {@code sync}. Si mañana la cátedra agrega un dato de conexión, se suma acá y en el
+     * registro de {@code shared}, y ningún contexto se entera.
+     */
+    @Override
+    public CatedraRedisSettings currentRedisSettings() {
+        IntegrationConfig config = currentIntegration();
+        return new CatedraRedisSettings(
+                config.redisHost(),
+                config.redisPort(),
+                config.redisUsername(),
+                config.redisPassword(),
+                config.redisReadNamespace(),
+                config.redisWriteNamespace());
+    }
+
+    @Override
+    public void invalidate() {
+        // Una sola escritura volatile, sin el monitor: quien llama ya recibió el 401, no hay
+        // nada que sincronizar con reload() y retener el monitor acá solo lo frenaría.
+        session = null;
+    }
+
+    /**
+     * Sesión vigente, recargándola si no la hay.
+     *
+     * <p>El token y la integración llegan juntos en la caché, así que garantizar uno garantiza
+     * el otro: es el mismo camino que ya recorría {@link #currentIntegration()}, ahora
+     * compartido por las dos caras de esta clase.
+     *
+     * <p>Reintenta si la sesión sigue ausente, por una carrera que el diseño acepta:
+     * {@link #invalidate()} puede correr en otro hilo —al responder un 401— justo después de
+     * recargar, y en ese caso toca volver a pedirla en vez de devolver {@code null}.
+     */
+    private CachedSession usableSession() {
         requireProvisioned();
 
         CachedSession hit = session;
-        if (hit != null && isUsable(hit.token())) {
-            return hit.integration();
+        for (int intento = 0; !usable(hit) && intento < 2; intento++) {
+            reload();
+            hit = session;
         }
-        return reload();
+
+        if (usable(hit)) {
+            return hit;
+        }
+        throw new CatedraUnavailableException(
+                "No se pudo obtener una sesión vigente con la cátedra.");
+    }
+
+    /** Si la sesión existe y su token sigue sirviendo para usarlo ahora. */
+    private boolean usable(CachedSession candidate) {
+        return candidate != null && isUsable(candidate.token());
     }
 
     /**
