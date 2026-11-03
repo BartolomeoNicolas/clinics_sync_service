@@ -8,14 +8,17 @@ import com.bartolomeo.clinics.sync.shared.application.exception.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -76,6 +79,56 @@ public class GlobalExceptionHandler {
             HandlerMethodValidationException ex, HttpServletRequest request) {
 
         return respond(ErrorCode.VALIDATION_ERROR, "Parámetros inválidos.", request, List.of());
+    }
+
+    /**
+     * Parámetros que no pasaron la validación de su tipo —un {@code size} fuera de rango, un
+     * campo obligatorio vacío—.
+     *
+     * <p>Sin este handler terminaría en el genérico y respondería {@code 500}: un error del
+     * cliente no es un error interno, y un cliente no puede distinguir uno del otro para
+     * corregir lo suyo. Va con el campo que falló, igual que los errores de cuerpo.
+     *
+     * <p>{@code MethodArgumentNotValidException} también es un {@code BindException}, pero es
+     * más específico y Spring elige el suyo; este queda para el resto.
+     */
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<ApiProblemDetail> handleBind(
+            BindException ex, HttpServletRequest request) {
+
+        List<ApiProblemDetail.FieldError> fieldErrors = ex.getBindingResult().getFieldErrors()
+                .stream()
+                .map(error -> new ApiProblemDetail.FieldError(
+                        error.getField(),
+                        error.getDefaultMessage(),
+                        error.getRejectedValue() == null ? null : error.getRejectedValue().toString()))
+                .toList();
+
+        return respond(ErrorCode.VALIDATION_ERROR, "La solicitud tiene parámetros inválidos.",
+                request, fieldErrors);
+    }
+
+    /**
+     * Un parámetro o una variable de ruta que no se pudo convertir al tipo esperado
+     * —{@code GET /api/catalog/professionals/abc}, una fecha mal escrita.
+     *
+     * <p>Mismo motivo que el handler anterior: responder 500 por un error de sintaxis del
+     * cliente es esconder que la petición estaba mal. El valor no se devuelve; no aporta nada
+     * y lo que hay que corregir es el campo, no repetir lo que se mandó.
+     */
+    @ExceptionHandler(TypeMismatchException.class)
+    public ResponseEntity<ApiProblemDetail> handleTypeMismatch(
+            TypeMismatchException ex, HttpServletRequest request) {
+
+        String field = ex instanceof MethodArgumentTypeMismatchException mismatch
+                ? mismatch.getName()
+                : ex.getPropertyName();
+
+        String name = field == null ? "parámetro" : field;
+
+        return respond(ErrorCode.VALIDATION_ERROR, "La solicitud tiene parámetros inválidos.",
+                request, List.of(new ApiProblemDetail.FieldError(
+                        name, "No tiene el formato esperado.", null)));
     }
 
     /** JSON ilegible o con tipos que no cierran. No es un 500: es del cliente. */

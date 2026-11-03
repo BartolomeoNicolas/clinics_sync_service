@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.bartolomeo.clinics.sync.catalog.domain.ports.out.CatalogQueryPort;
 import com.bartolomeo.clinics.sync.catalog.domain.ports.out.CatalogReplicaPort;
 import com.bartolomeo.clinics.sync.support.TestKeys;
 import com.bartolomeo.clinics.sync.sync.domain.ports.out.CatalogVersionPort;
@@ -53,9 +54,15 @@ class SecurityLimitsTest {
      * toca la base, y los adaptadores que los implementan no podrían construirse sin
      * repositorios. Se stubbea el puerto —la costura de arquitectura— y no el adaptador, así el
      * contexto se arma igual que en producción salvo por la parte que acá no se verifica.
+     *
+     * Es el mismo truco por cada puerto que traiga persistencia detrás: acá se verifica el
+     * límite HTTP, no la consulta.
      */
     @MockitoBean
     private CatalogReplicaPort replica;
+
+    @MockitoBean
+    private CatalogQueryPort consultas;
 
     @MockitoBean
     private CatalogVersionPort version;
