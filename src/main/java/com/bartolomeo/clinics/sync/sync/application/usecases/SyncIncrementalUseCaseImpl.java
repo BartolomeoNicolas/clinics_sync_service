@@ -8,12 +8,17 @@ import com.bartolomeo.clinics.sync.catalog.domain.model.WeeklySchedule;
 import com.bartolomeo.clinics.sync.catalog.domain.ports.out.CatalogChangesPort;
 import com.bartolomeo.clinics.sync.catalog.domain.ports.out.CatalogReplicaPort;
 import com.bartolomeo.clinics.sync.sync.domain.model.SyncError;
+import com.bartolomeo.clinics.sync.sync.application.exception.SyncAlreadyRunningException;
 import com.bartolomeo.clinics.sync.sync.domain.ports.in.SyncFullSnapshotUseCase;
 import com.bartolomeo.clinics.sync.sync.domain.ports.in.SyncIncrementalUseCase;
 import com.bartolomeo.clinics.sync.sync.domain.ports.out.CatalogVersionPort;
+import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncDiagnosticsPort;
 import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncErrorPort;
+import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncLockPort;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +60,9 @@ public class SyncIncrementalUseCaseImpl implements SyncIncrementalUseCase {
     /** De qué falló este caso de uso. Valor estable: lo consultan el endpoint de errores. */
     private static final String KIND = "incremental";
 
+    /** Cuánto vive el lock si el proceso muere sin soltarlo. */
+    private static final Duration LOCK_TTL = Duration.ofMinutes(10);
+
     private static final Logger log = LoggerFactory.getLogger(SyncIncrementalUseCaseImpl.class);
 
     private final CatalogChangesPort changesPort;
@@ -62,18 +70,24 @@ public class SyncIncrementalUseCaseImpl implements SyncIncrementalUseCase {
     private final CatalogVersionPort versionPort;
     private final SyncFullSnapshotUseCase snapshotUseCase;
     private final SyncErrorPort errorPort;
+    private final SyncLockPort lock;
+    private final SyncDiagnosticsPort diagnostics;
 
     public SyncIncrementalUseCaseImpl(
             CatalogChangesPort changesPort,
             CatalogReplicaPort replicaPort,
             CatalogVersionPort versionPort,
             SyncFullSnapshotUseCase snapshotUseCase,
-            SyncErrorPort errorPort) {
+            SyncErrorPort errorPort,
+            SyncLockPort lock,
+            SyncDiagnosticsPort diagnostics) {
         this.changesPort = changesPort;
         this.replicaPort = replicaPort;
         this.versionPort = versionPort;
         this.snapshotUseCase = snapshotUseCase;
         this.errorPort = errorPort;
+        this.lock = lock;
+        this.diagnostics = diagnostics;
     }
 
     @Override
@@ -81,6 +95,12 @@ public class SyncIncrementalUseCaseImpl implements SyncIncrementalUseCase {
     public long applyIncremental() {
 
         long local = versionPort.currentVersion();
+
+        if (!lock.tryAcquire(LOCK_TTL)) {
+            // Hay otra sincronización en curso. La que está corriendo deja la copia al día
+            // igual, así que no hace falta hacer nada: solo avisar que no se puede empezar.
+            throw new SyncAlreadyRunningException();
+        }
 
         try {
             SyncState state = changesPort.syncState();
@@ -104,11 +124,17 @@ public class SyncIncrementalUseCaseImpl implements SyncIncrementalUseCase {
                 log.info("Sincronización incremental: la versión local pasó de {} a {}",
                         local, aplicada);
             }
+            diagnostics.recordLastSync(
+                    aplicada, "OK", Instant.now(), "incremental desde la versión " + local);
             return aplicada;
 
         } catch (RuntimeException failure) {
             registrarError(local, failure);
+            diagnostics.recordLastSync(
+                    local, "ERROR", Instant.now(), failure.getMessage());
             throw failure;
+        } finally {
+            lock.release();
         }
     }
 

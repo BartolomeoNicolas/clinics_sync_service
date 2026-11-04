@@ -4,6 +4,7 @@ import com.bartolomeo.clinics.sync.sync.domain.model.SyncError;
 import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncErrorPort;
 import com.bartolomeo.clinics.sync.sync.infrastructure.persistence.entity.SyncErrorEntity;
 import com.bartolomeo.clinics.sync.sync.infrastructure.persistence.repository.SyncErrorRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -50,6 +51,23 @@ public class SyncErrorAdapter implements SyncErrorPort {
         entity.setDetail(error.detail());
 
         repository.save(entity);
+    }
+
+    @Override
+    public List<SyncError> recent() {
+        return repository.findTop100ByOrderByOccurredAtDesc().stream()
+                .map(SyncErrorAdapter::toDomain)
+                .toList();
+    }
+
+    /** De la fila al error del dominio. */
+    private static SyncError toDomain(SyncErrorEntity entity) {
+        return new SyncError(
+                entity.getOccurredAt(),
+                entity.getKind(),
+                entity.getAttemptedVersion(),
+                entity.getMessage(),
+                entity.getDetail());
     }
 
     /** Recorta al largo de la columna y pone un sustituto si el valor vino vacío. */

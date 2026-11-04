@@ -4,12 +4,17 @@ import com.bartolomeo.clinics.sync.catalog.domain.model.CatalogSnapshot;
 import com.bartolomeo.clinics.sync.catalog.domain.ports.out.CatalogReplicaPort;
 import com.bartolomeo.clinics.sync.catalog.domain.ports.out.CatalogSnapshotPort;
 import com.bartolomeo.clinics.sync.shared.application.exception.ApplicationException;
+import com.bartolomeo.clinics.sync.sync.application.exception.SyncAlreadyRunningException;
 import com.bartolomeo.clinics.sync.sync.domain.model.SyncError;
 import com.bartolomeo.clinics.sync.sync.domain.ports.in.SyncFullSnapshotUseCase;
 import com.bartolomeo.clinics.sync.sync.domain.ports.out.CatalogVersionPort;
+import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncDiagnosticsPort;
 import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncErrorPort;
+import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncLockPort;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.Duration;
+import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -43,27 +48,41 @@ public class SyncFullSnapshotUseCaseImpl implements SyncFullSnapshotUseCase {
     /** De qué falló este caso de uso. Valor estable: lo consultan el endpoint de errores. */
     private static final String KIND = "snapshot";
 
+    /** Cuánto vive el lock si el proceso muere sin soltarlo. */
+    private static final Duration LOCK_TTL = Duration.ofMinutes(10);
+
     private static final Logger log = LoggerFactory.getLogger(SyncFullSnapshotUseCaseImpl.class);
 
     private final CatalogSnapshotPort snapshotPort;
     private final CatalogReplicaPort replicaPort;
     private final CatalogVersionPort versionPort;
     private final SyncErrorPort errorPort;
+    private final SyncLockPort lock;
+    private final SyncDiagnosticsPort diagnostics;
 
     public SyncFullSnapshotUseCaseImpl(
             CatalogSnapshotPort snapshotPort,
             CatalogReplicaPort replicaPort,
             CatalogVersionPort versionPort,
-            SyncErrorPort errorPort) {
+            SyncErrorPort errorPort,
+            SyncLockPort lock,
+            SyncDiagnosticsPort diagnostics) {
         this.snapshotPort = snapshotPort;
         this.replicaPort = replicaPort;
         this.versionPort = versionPort;
         this.errorPort = errorPort;
+        this.lock = lock;
+        this.diagnostics = diagnostics;
     }
 
     @Override
     @Transactional
     public long applyFullSnapshot() {
+
+        if (!lock.tryAcquire(LOCK_TTL)) {
+            // Hay otra sincronización en curso: la que está corriendo deja la copia al día.
+            throw new SyncAlreadyRunningException();
+        }
 
         // Se arranca en null a propósito: si el fallo es pedir el snapshot todavía no se sabe
         // contra qué versión se trabajaba, y registrar un número inventado despistaría más de
@@ -75,12 +94,18 @@ public class SyncFullSnapshotUseCaseImpl implements SyncFullSnapshotUseCase {
 
             replicaPort.replaceAll(snapshot);
             versionPort.recordSnapshotApplied(version, snapshot.generatedAt());
+            diagnostics.recordLastSync(
+                    version, "OK", Instant.now(), "snapshot completo");
 
             return version;
 
         } catch (RuntimeException failure) {
             registrarError(version, failure);
+            diagnostics.recordLastSync(
+                    version == null ? 0L : version, "ERROR", Instant.now(), failure.getMessage());
             throw failure;
+        } finally {
+            lock.release();
         }
     }
 

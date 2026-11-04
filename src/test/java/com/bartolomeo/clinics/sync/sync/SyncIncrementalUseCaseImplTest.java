@@ -1,6 +1,7 @@
 package com.bartolomeo.clinics.sync.sync;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -20,13 +21,17 @@ import com.bartolomeo.clinics.sync.catalog.domain.model.SyncState;
 import com.bartolomeo.clinics.sync.catalog.domain.model.WeeklySchedule;
 import com.bartolomeo.clinics.sync.catalog.domain.ports.out.CatalogChangesPort;
 import com.bartolomeo.clinics.sync.catalog.domain.ports.out.CatalogReplicaPort;
+import com.bartolomeo.clinics.sync.sync.application.exception.SyncAlreadyRunningException;
 import com.bartolomeo.clinics.sync.sync.application.usecases.SyncIncrementalUseCaseImpl;
 import com.bartolomeo.clinics.sync.sync.domain.ports.in.SyncFullSnapshotUseCase;
 import com.bartolomeo.clinics.sync.sync.domain.ports.in.SyncIncrementalUseCase;
 import com.bartolomeo.clinics.sync.sync.domain.ports.out.CatalogVersionPort;
+import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncDiagnosticsPort;
 import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncErrorPort;
+import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncLockPort;
 import java.time.Instant;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -49,9 +54,16 @@ class SyncIncrementalUseCaseImplTest {
     private final CatalogVersionPort versionPort = mock(CatalogVersionPort.class);
     private final SyncFullSnapshotUseCase snapshotUseCase = mock(SyncFullSnapshotUseCase.class);
     private final SyncErrorPort errorPort = mock(SyncErrorPort.class);
+    private final SyncLockPort lock = mock(SyncLockPort.class);
+    private final SyncDiagnosticsPort diagnostics = mock(SyncDiagnosticsPort.class);
 
     private final SyncIncrementalUseCase useCase = new SyncIncrementalUseCaseImpl(
-            changesPort, replicaPort, versionPort, snapshotUseCase, errorPort);
+            changesPort, replicaPort, versionPort, snapshotUseCase, errorPort, lock, diagnostics);
+
+    @BeforeEach
+    void preparar() {
+        when(lock.tryAcquire(any())).thenReturn(true);
+    }
 
     private static CatalogChanges cambios(long version, List<Long> profesionales) {
         return new CatalogChanges(version, List.of(), profesionales, List.of());
@@ -60,6 +72,34 @@ class SyncIncrementalUseCaseImplTest {
     private void estadoRemoto(long current, long oldest) {
         when(changesPort.syncState())
                 .thenReturn(new SyncState(current, oldest, PUBLICADO));
+    }
+
+    @Test
+    @DisplayName("si ya hay una sincronizacion en curso no se empieza otra")
+    void siYaHayUnaSincronizacionNoSeEmpiezaOtra() {
+        when(versionPort.currentVersion()).thenReturn(3L);
+        estadoRemoto(5, 3);
+        when(lock.tryAcquire(any())).thenReturn(false);
+
+        var error = catchThrowableOfType(
+                SyncAlreadyRunningException.class,
+                () -> useCase.applyIncremental());
+
+        assertThat(error).isNotNull();
+        verify(changesPort, never()).changes(anyLong());
+        verify(replicaPort, never()).upsert(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("el lock se suelta siempre, aunque la sincronizacion falle")
+    void elLockSeSueltaSiempre() {
+        when(versionPort.currentVersion()).thenReturn(3L);
+        estadoRemoto(5, 3);
+        when(changesPort.changes(4L)).thenThrow(new IllegalStateException("redis caido"));
+
+        catchThrowableOfType(IllegalStateException.class, () -> useCase.applyIncremental());
+
+        verify(lock).release();
     }
 
     @Test

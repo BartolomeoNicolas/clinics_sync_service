@@ -34,4 +34,14 @@ public interface SyncErrorPort {
      * @throws RuntimeException si la base no acepta el registro
      */
     void record(SyncError error);
+
+    /**
+     * Los errores más recientes, del más nuevo al más viejo.
+     *
+     * <p>Es lo que consulta el endpoint de errores: quien pregunta el estado del servicio no
+     * necesita credenciales de base ni saber el esquema.
+     *
+     * @return los errores registrados, como mucho los últimos cien
+     */
+    java.util.List<SyncError> recent();
 }

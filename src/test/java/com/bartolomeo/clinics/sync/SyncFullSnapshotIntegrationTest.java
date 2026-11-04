@@ -9,9 +9,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.util.Base64;
+import java.util.Optional;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -25,6 +27,8 @@ import com.bartolomeo.clinics.sync.shared.application.exception.ApplicationExcep
 import com.bartolomeo.clinics.sync.shared.application.exception.ErrorCode;
 import com.bartolomeo.clinics.sync.support.TestKeys;
 import com.bartolomeo.clinics.sync.sync.domain.ports.in.SyncFullSnapshotUseCase;
+import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncDiagnosticsPort;
+import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncLockPort;
 import com.bartolomeo.clinics.sync.sync.infrastructure.persistence.entity.CatalogVersionEntity;
 import com.bartolomeo.clinics.sync.sync.infrastructure.persistence.entity.SyncErrorEntity;
 import com.bartolomeo.clinics.sync.sync.infrastructure.persistence.repository.CatalogVersionRepository;
@@ -37,6 +41,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -127,6 +134,52 @@ class SyncFullSnapshotIntegrationTest {
         registry.add("clinics.security.jwt.audience", () -> TestKeys.AUDIENCE);
         registry.add("clinics.security.jwt.issuer", () -> TestKeys.ISSUER);
         registry.add("clinics.security.jwt.allowed-origins", () -> "https://app.example.edu");
+    }
+
+    /**
+     * El lock y el diagnóstico, sin Redis.
+     *
+     * <p>Este test mide el snapshot contra la cátedra (un doble de WireMock) y una base real;
+     * el Redis de la cátedra no está y no hace falta: el lock y el registro de estado tienen su
+     * propia prueba. Con un bean propio marcado como primario, el resto del arranque es el de
+     * producción.
+     */
+    @TestConfiguration
+    static class SinRedisDeLaCatedra {
+
+        @Bean
+        @Primary
+        LockYDiagnostico stubDelLockYElDiagnostico() {
+            return new LockYDiagnostico();
+        }
+    }
+
+    /** Lock y diagnóstico que no hacen nada: el test no tiene Redis. */
+    static class LockYDiagnostico implements SyncLockPort, SyncDiagnosticsPort {
+
+        @Override
+        public boolean tryAcquire(Duration ttl) {
+            return true;
+        }
+
+        @Override
+        public void release() {
+        }
+
+        @Override
+        public boolean isRunning() {
+            return false;
+        }
+
+        @Override
+        public void recordLastSync(long version, String outcome, Instant finishedAt,
+                String detail) {
+        }
+
+        @Override
+        public Optional<LastSync> lastSync() {
+            return Optional.empty();
+        }
     }
 
     @BeforeEach

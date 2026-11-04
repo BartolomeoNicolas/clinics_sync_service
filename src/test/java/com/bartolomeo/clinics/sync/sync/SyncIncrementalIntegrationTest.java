@@ -14,11 +14,15 @@ import com.bartolomeo.clinics.sync.shared.infrastructure.catedra.CatedraRedisSet
 import com.bartolomeo.clinics.sync.shared.infrastructure.catedra.CatedraRedisSettingsSource;
 import com.bartolomeo.clinics.sync.support.TestKeys;
 import com.bartolomeo.clinics.sync.sync.domain.ports.in.SyncFullSnapshotUseCase;
+import com.bartolomeo.clinics.sync.sync.domain.model.SyncStatus;
+import com.bartolomeo.clinics.sync.sync.domain.ports.in.GetSyncStatusUseCase;
 import com.bartolomeo.clinics.sync.sync.domain.ports.in.SyncIncrementalUseCase;
+import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncLockPort;
 import com.bartolomeo.clinics.sync.sync.infrastructure.persistence.entity.CatalogVersionEntity;
 import com.bartolomeo.clinics.sync.sync.infrastructure.persistence.repository.CatalogVersionRepository;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
+import java.time.Duration;
 import java.time.Instant;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -28,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -63,6 +68,12 @@ class SyncIncrementalIntegrationTest {
 
     @Autowired
     private SyncIncrementalUseCase incremental;
+
+    @Autowired
+    private GetSyncStatusUseCase statusUseCase;
+
+    @Autowired
+    private ApplicationContext applicationContext;
 
     @Autowired
     private ProfessionalRepository profesionales;
@@ -258,5 +269,57 @@ class SyncIncrementalIntegrationTest {
         incremental.applyIncremental();
 
         verifyNoInteractions(snapshotUseCase);
+    }
+
+    @Test
+    @DisplayName("el lock no deja que dos sincronizaciones se pisen")
+    void elLockNoDejaQueDosSincronizacionesSePisen() {
+        SyncLockPort lock = adapterDeRedis();
+
+        assertThat(lock.tryAcquire(Duration.ofMinutes(1))).isTrue();
+        // El segundo intento, del mismo proceso, es la misma sincronización: no se pisa.
+        assertThat(lock.tryAcquire(Duration.ofMinutes(1))).isTrue();
+
+        lock.release();
+
+        // Con el lock suelto, otro proceso puede tomarlo.
+        assertThat(lock.tryAcquire(Duration.ofMinutes(1))).isTrue();
+        lock.release();
+    }
+
+    @Test
+    @DisplayName("la ultima sincronizacion queda registrada en el namespace propio de Redis")
+    void laUltimaSincronizacionQuedaEnElNamespacePropio() {
+        registraVersionLocal(4L);
+        sembrarRedis("5", "4");
+
+        incremental.applyIncremental();
+
+        try (RedisClient cliente = RedisClient.create(
+                "redis://" + redis.getHost() + ":" + redis.getMappedPort(6379));
+                StatefulRedisConnection<String, String> conexion = cliente.connect()) {
+            String cuerpo = conexion.sync().get("alumnos:test:diagnostics:last-sync");
+
+            assertThat(cuerpo).isNotNull();
+            assertThat(cuerpo).contains("\"version\":5").contains("\"outcome\":\"OK\"");
+        }
+    }
+
+    @Test
+    @DisplayName("el estado dice la version local, la remota y la ventana disponible")
+    void elEstadoDiceLasTresVersiones() {
+        registraVersionLocal(4L);
+        sembrarRedis("7", "5");
+
+        SyncStatus estado = statusUseCase.status();
+
+        assertThat(estado.localVersion()).isEqualTo(4L);
+        assertThat(estado.remoteVersion()).isEqualTo(7L);
+        assertThat(estado.oldestAvailableVersion()).isEqualTo(5L);
+    }
+
+    /** El adaptador real de lock y diagnóstico, que es el que usa Redis. */
+    private SyncLockPort adapterDeRedis() {
+        return (SyncLockPort) applicationContext.getBean("redisSyncDiagnosticsAdapter");
     }
 }
