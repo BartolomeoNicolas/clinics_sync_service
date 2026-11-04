@@ -13,6 +13,10 @@ spring:
   profiles:
     default: dev
 
+  kafka:
+    # Broker de la catedra. Lo da la catedra en el documento de integracion.
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
   config:
     import:
       # .env local del repo, leído como properties. "optional" porque el archivo
@@ -97,6 +101,24 @@ clinics:
     # PENDING | PROVISIONED | FAILED | REVOKED
     provisioning-status: ${CATEDRA_PROVISIONING_STATUS:PENDING}
 
+    # Kafka de la catedra. Kafka es notificacion, no fuente de datos: el topic
+    # solo avisa que hay una version nueva del catalogo.
+    kafka:
+      # El consumidor se puede apagar para levantar el servicio sin broker (por
+      # ejemplo, en un entorno donde todavia no hay broker de pruebas).
+      enabled: ${CATEDRA_KAFKA_ENABLED:true}
+      # El groupId de la cuenta tecnica: va en el topic y en el mensaje que
+      # publica la catedra.
+      group-id: ${CATEDRA_GROUP_ID:nicobartok0-prog2}
+      catalog-topic: ${CATEDRA_CATALOG_TOPIC:catedra.catalog.nicobartok0-prog2}
+      # Un grupo por servicio: si dos servicios compartieran el grupo, se
+      # repartirian los mensajes y cada uno recibiria la mitad.
+      consumer-group: ${CATEDRA_CONSUMER_GROUP:clinics-sync}
+      # Reintentos con tope ante un error recuperable. Acotados a proposito: un
+      # error que se repite no se arregla insistiendo.
+      retries: ${CATEDRA_KAFKA_RETRIES:3}
+      retry-interval-ms: ${CATEDRA_KAFKA_RETRY_INTERVAL_MS:1000}
+
 logging:
   level:
     com.bartolomeo.clinics: DEBUG
@@ -130,6 +152,14 @@ clinics:
     base-url: http://localhost:${CATEDRA_WIREMOCK_PORT:18080}
     group-id: test-group
     provisioning-status: PROVISIONED
+    # Kafka se apaga en los tests: no hay broker y el consumidor solo produciría ruido.
+    kafka:
+      enabled: false
+      group-id: test-group
+      catalog-topic: catedra.catalog.test-group
+      consumer-group: clinics-sync-test
+      retries: 1
+      retry-interval-ms: 10
 
 management:
   # En tests no corre ningún Redis (el compose del sync solo levanta Postgres) y el

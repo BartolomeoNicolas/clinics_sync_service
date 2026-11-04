@@ -12,6 +12,7 @@ import com.bartolomeo.clinics.sync.catalog.domain.ports.out.CatalogQueryPort;
 import com.bartolomeo.clinics.sync.catalog.domain.ports.out.CatalogReplicaPort;
 import com.bartolomeo.clinics.sync.support.TestKeys;
 import com.bartolomeo.clinics.sync.sync.domain.ports.out.CatalogVersionPort;
+import com.bartolomeo.clinics.sync.sync.domain.ports.out.ProcessedEventRepository;
 import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncErrorPort;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -69,6 +70,9 @@ class SecurityLimitsTest {
 
     @MockitoBean
     private SyncErrorPort errores;
+
+    @MockitoBean
+    private ProcessedEventRepository eventosProcesados;
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
