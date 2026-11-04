@@ -17,4 +17,15 @@ public interface CatalogVersionRepository extends JpaRepository<CatalogVersionEn
     Optional<CatalogVersionEntity> findByVersion(long version);
 
     boolean existsByVersion(long version);
+
+    /**
+     * La versión más alta aplicada: la que es la versión local.
+     *
+     * <p>El historial es por versión a propósito —guardar solo la última perdería la
+     * capacidad de detectar una discontinuidad—, así que la versión local se busca como la
+     * más alta del historial y no como un singleton.
+     *
+     * @return la versión más alta registrada, o vacío si no hay ninguna
+     */
+    Optional<CatalogVersionEntity> findTopByOrderByVersionDesc();
 }

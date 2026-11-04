@@ -1,12 +1,16 @@
 package com.bartolomeo.clinics.sync.catalog.infrastructure.persistence.adapter;
 
 import com.bartolomeo.clinics.sync.catalog.domain.model.CatalogSnapshot;
+import com.bartolomeo.clinics.sync.catalog.domain.model.Professional;
+import com.bartolomeo.clinics.sync.catalog.domain.model.ProfessionalCategory;
+import com.bartolomeo.clinics.sync.catalog.domain.model.WeeklySchedule;
 import com.bartolomeo.clinics.sync.catalog.domain.ports.out.CatalogReplicaPort;
 import com.bartolomeo.clinics.sync.catalog.infrastructure.persistence.mapper.CatalogReplicaMapper;
 import com.bartolomeo.clinics.sync.catalog.infrastructure.persistence.repository.ProfessionalCategoryRepository;
 import com.bartolomeo.clinics.sync.catalog.infrastructure.persistence.repository.ProfessionalRepository;
 import com.bartolomeo.clinics.sync.catalog.infrastructure.persistence.repository.WeeklyScheduleRepository;
 import jakarta.persistence.EntityManager;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +64,42 @@ public class CatalogReplicaAdapter implements CatalogReplicaPort {
 
         // Fuerza los INSERT ahora y no al cerrar la transacción: si una fila viola una
         // restricción, que falle mientras todavía se puede revertir todo de una.
+        entityManager.flush();
+    }
+
+    /**
+     * Aplica los cambios de una versión sobre la copia local.
+     *
+     * <p><strong>El upsert va en el orden de las claves ajenas.</strong> Una categoría que
+     * aparece antes que el profesional que la referencia, y un profesional antes que el
+     * horario que lo referencia: al revés, una FOREIGN KEY violada abortaría la transacción.
+     *
+     * <p><strong>No se borra nada.</strong> Un incremento solo trae lo que cambió, así que
+     * borrar sería perder el catálogo entero. Las bajas lógicas llegan como entidades
+     * deshabilitadas y se guardan así.
+     */
+    @Override
+    @Transactional
+    public void upsert(
+            List<ProfessionalCategory> categories,
+            List<Professional> professionals,
+            List<WeeklySchedule> schedules) {
+
+        if (!categories.isEmpty()) {
+            this.categories.saveAll(categories.stream()
+                    .map(CatalogReplicaMapper::toEntity)
+                    .toList());
+        }
+        if (!professionals.isEmpty()) {
+            this.professionals.saveAll(professionals.stream()
+                    .map(CatalogReplicaMapper::toEntity)
+                    .toList());
+        }
+        if (!schedules.isEmpty()) {
+            this.schedules.saveAll(schedules.stream()
+                    .map(CatalogReplicaMapper::toEntity)
+                    .toList());
+        }
         entityManager.flush();
     }
 }

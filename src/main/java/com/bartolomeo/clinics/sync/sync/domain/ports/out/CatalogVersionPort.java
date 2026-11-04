@@ -24,6 +24,17 @@ import java.time.Instant;
 public interface CatalogVersionPort {
 
     /**
+     * La versión local: la más alta que se aplicó y quedó registrada.
+     *
+     * <p><strong>Cero cuando no hay ninguna.</strong> Una base recién vacía no tiene versión
+     * local, y cero es lo que hace que la sincronización incremental pida un snapshot en vez
+     * de intentar encadenar desde la nada.
+     *
+     * @return la versión local, o cero si todavía no se aplicó ninguna
+     */
+    long currentVersion();
+
+    /**
      * Registra que la versión {@code version} del snapshot quedó aplicada como versión local.
      *
      * <p>No hace nada si la versión ya estaba registrada.
@@ -34,4 +45,22 @@ public interface CatalogVersionPort {
      *         lo que se había aplicado, porque van en la misma transacción
      */
     void recordSnapshotApplied(long version, Instant snapshotGeneratedAt);
+
+    /**
+     * Registra que la versión {@code version} quedó aplicada de forma incremental.
+     *
+     * <p><strong>La versión y los cambios van en la misma transacción.</strong> El enunciado
+     * §6.2 dice que la versión local solo puede avanzar cuando la unidad de trabajo terminó
+     * correctamente: si el registro de la versión se confirmara aparte de los cambios, un
+     * fallo a mitad de una versión dejaría la versión local adelantada y el catálogo atrás, y
+     * de ese estado no se sale sin otro snapshot.
+     *
+     * <p>Es idempotente, como el del snapshot: repetir la misma versión no cambia el estado.
+     *
+     * @param version    versión aplicada, mayor que cero
+     * @param publishedAt cuándo la publicó la cátedra, o {@code null} si no vino
+     * @throws RuntimeException si la base no acepta el registro; en ese caso se revierte también
+     *         lo que se había aplicado, porque van en la misma transacción
+     */
+    void recordIncrementalApplied(long version, Instant publishedAt);
 }

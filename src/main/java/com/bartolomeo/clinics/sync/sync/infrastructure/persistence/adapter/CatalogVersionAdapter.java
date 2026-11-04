@@ -26,8 +26,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class CatalogVersionAdapter implements CatalogVersionPort {
 
     private static final String FUENTE_SNAPSHOT = "SNAPSHOT";
+    private static final String FUENTE_INCREMENTAL = "INCREMENTAL";
 
     private final CatalogVersionRepository repository;
+
+    @Override
+    public long currentVersion() {
+        return repository.findTopByOrderByVersionDesc()
+                .map(CatalogVersionEntity::getVersion)
+                .orElse(0L);
+    }
 
     @Override
     @Transactional
@@ -41,6 +49,22 @@ public class CatalogVersionAdapter implements CatalogVersionPort {
         entity.setVersion(version);
         entity.setSource(FUENTE_SNAPSHOT);
         entity.setSnapshotGeneratedAt(snapshotGeneratedAt);
+        entity.setAppliedAt(Instant.now());
+        repository.save(entity);
+    }
+
+    @Override
+    @Transactional
+    public void recordIncrementalApplied(long version, Instant publishedAt) {
+
+        if (repository.existsByVersion(version)) {
+            return;
+        }
+
+        CatalogVersionEntity entity = new CatalogVersionEntity();
+        entity.setVersion(version);
+        entity.setSource(FUENTE_INCREMENTAL);
+        entity.setSnapshotGeneratedAt(publishedAt);
         entity.setAppliedAt(Instant.now());
         repository.save(entity);
     }

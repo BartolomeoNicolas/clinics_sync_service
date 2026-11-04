@@ -1,6 +1,10 @@
 package com.bartolomeo.clinics.sync.catalog.domain.ports.out;
 
 import com.bartolomeo.clinics.sync.catalog.domain.model.CatalogSnapshot;
+import com.bartolomeo.clinics.sync.catalog.domain.model.Professional;
+import com.bartolomeo.clinics.sync.catalog.domain.model.ProfessionalCategory;
+import com.bartolomeo.clinics.sync.catalog.domain.model.WeeklySchedule;
+import java.util.List;
 
 /**
  * Puerto de salida por el que se reconstruye la copia local del catálogo a partir de un
@@ -34,7 +38,6 @@ import com.bartolomeo.clinics.sync.catalog.domain.model.CatalogSnapshot;
  * @see com.bartolomeo.clinics.sync.catalog.domain.model.CatalogSnapshot
  */
 public interface CatalogReplicaPort {
-
     /**
      * Reemplaza las tres colecciones de la copia local por las del snapshot, en una sola
      * transacción.
@@ -43,4 +46,24 @@ public interface CatalogReplicaPort {
      * decide cuándo se confirma, solo garantiza que sus escrituras sean revocables.
      */
     void replaceAll(CatalogSnapshot snapshot);
+
+    /**
+     * Aplica sobre la copia local las entidades que cambiaron en una versión.
+     *
+     * <p><strong>Es un upsert, no un reemplazo.</strong> El incremento solo trae lo que cambió,
+     * así que las entidades que no aparecen quedan como estaban: borrarlas sería perder el
+     * catálogo entero en cada versión.
+     *
+     * <p><strong>Las bajas lógicas se aplican como lo que son.</strong> Una entidad que llega
+     * deshabilitada se guarda deshabilitada, no se borra: el contrato las maneja así, y borrar
+     * perdería el historial y rompería las referencias de las que apuntan a ella.
+     *
+     * @param categories  categorías que cambiaron, con su estado vigente
+     * @param professionals profesionales que cambiaron, con su estado vigente
+     * @param schedules  horarios semanales que cambiaron, con su estado vigente
+     */
+    void upsert(
+            List<ProfessionalCategory> categories,
+            List<Professional> professionals,
+            List<WeeklySchedule> schedules);
 }
