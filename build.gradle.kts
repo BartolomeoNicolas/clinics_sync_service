@@ -52,6 +52,9 @@ dependencies {
     testImplementation("org.springframework.security:spring-security-test")
     // En Boot 4, @AutoConfigureMockMvc viene en su propio starter de test web.
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+    // WireMock standalone: el doble de la cátedra en los tests de contrato (PLAN.md §10).
+    // El standalone trae todo sombreado, así que no pelea por versiones con Spring.
+    testImplementation("org.wiremock:wiremock-standalone:3.13.2")
     // Testcontainers 2 renombró todos los módulos con prefijo `testcontainers-`.
     // Los nombres viejos (`org.testcontainers:junit-jupiter`, `:postgresql`) dan 404.
     testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.5")
