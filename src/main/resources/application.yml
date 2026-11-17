@@ -19,12 +19,14 @@ spring:
 
   config:
     import:
+      # Ubicación canónica, fuera del repo. CLINICS_SECRETS_DIR la sobreescribe.
+      # Es un properties de VARIABLES DE ENTORNO, no un yaml anidado: los placeholders
+      # de este archivo se resuelven con la variable, y el yaml del servicio gana sobre
+      # cualquier archivo importado, así que un yaml anidado no llegaría nunca.
+      - "optional:file:${CLINICS_SECRETS_DIR:${user.home}/.config/clinics/secrets}/sync[.properties]"
       # .env local del repo, leído como properties. "optional" porque el archivo
       # puede no existir: lo que falla después es el placeholder sin default.
       - "optional:file:.env[.properties]"
-      # Ubicación canónica, fuera del repo. CLINICS_SECRETS_DIR la sobreescribe.
-      - "optional:file:${CLINICS_SECRETS_DIR:${user.home}/.config/clinics/secrets}/sync.yml"
-      - "optional:file:${CLINICS_SECRETS_DIR:${user.home}/.config/clinics/secrets}/sync.yaml"
 
 server:
   port: 8081
@@ -149,9 +151,21 @@ clinics:
     db-password: ${DB_PASSWORD:}
   catedra:
     # En tests la cátedra se reemplaza por WireMock (PLAN.md §10).
+    # Un documento de perfil REEMPLAZA el mapa entero del documento base, así que lo que
+    # este servicio necesita para validating tiene que estar acá también.
     base-url: http://localhost:${CATEDRA_WIREMOCK_PORT:18080}
     group-id: test-group
     provisioning-status: PROVISIONED
+    # Redis: los tests no lo consultan, pero el adaptador se valida al construir.
+    redis-host: localhost
+    redis-port: 6379
+    redis-username: test
+    redis-password: test
+    # La cuenta tecnica: en tests la catedra es un doble de WireMock y el login se
+    # stubbea. Lo que importa es que estos tests NO dependan del archivo canonico de
+    # secretos de la maquina de nadie.
+    technical-user: alumno-de-prueba
+    technical-password: clave-de-prueba
     # Kafka se apaga en los tests: no hay broker y el consumidor solo produciría ruido.
     kafka:
       enabled: false
