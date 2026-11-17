@@ -77,6 +77,11 @@ spring:
 clinics:
   local:
     db-password: ${DB_PASSWORD:}
+  sync:
+    # Cada cuanto se compara la version local con la que hay disponible. Kafka
+    # avisa, pero si se pierde un aviso esta comparacion recupera el atraso. Al
+    # arrancar se corre una vez igual.
+    interval-ms: ${CLINICS_SYNC_INTERVAL_MS:300000}
   security:
     jwt:
       # Solo la PÚBLICA. Este servicio no emite tokens: los valida.
