@@ -8,7 +8,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.bartolomeo.clinics.sync.catalog.domain.ports.out.CatalogQueryPort;
+import com.bartolomeo.clinics.sync.catalog.domain.ports.out.CatalogReplicaPort;
 import com.bartolomeo.clinics.sync.support.TestKeys;
+import com.bartolomeo.clinics.sync.sync.domain.ports.out.CatalogVersionPort;
+import com.bartolomeo.clinics.sync.sync.domain.ports.out.ProcessedEventRepository;
+import com.bartolomeo.clinics.sync.sync.domain.ports.out.SyncErrorPort;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -43,6 +49,30 @@ class SecurityLimitsTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    /*
+     * Los puertos de persistencia quedan en doble: este test apaga JPA y DataSource porque no
+     * toca la base, y los adaptadores que los implementan no podrían construirse sin
+     * repositorios. Se stubbea el puerto —la costura de arquitectura— y no el adaptador, así el
+     * contexto se arma igual que en producción salvo por la parte que acá no se verifica.
+     *
+     * Es el mismo truco por cada puerto que traiga persistencia detrás: acá se verifica el
+     * límite HTTP, no la consulta.
+     */
+    @MockitoBean
+    private CatalogReplicaPort replica;
+
+    @MockitoBean
+    private CatalogQueryPort consultas;
+
+    @MockitoBean
+    private CatalogVersionPort version;
+
+    @MockitoBean
+    private SyncErrorPort errores;
+
+    @MockitoBean
+    private ProcessedEventRepository eventosProcesados;
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {

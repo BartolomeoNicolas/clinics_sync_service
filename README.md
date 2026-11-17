@@ -107,6 +107,7 @@ En una validación fallida, `fieldErrors` lista los campos con su mensaje:
 | `conflict` | 409 | Conflicto de estado |
 | `internal-error` | 500 | Error no previsto. **No incluye detalles internos** |
 | `catedra-unavailable` | 502 | La cátedra no respondió o respondió algo ilegible |
+| `catedra-rejected` | 503 | La cátedra rechazó nuestras credenciales técnicas. Un reintento no lo arregla: hay que corregirlas |
 | `catalog-unavailable` | 503 | El catálogo local no puede responder |
 | `sync-discontinuity` | 503 | La versión local no conecta con la ventana disponible |
 
@@ -117,6 +118,53 @@ El enum vive en `application/exception/ErrorCode` —el código del error lo def
 dominio— y el status con el que se responde en
 `infrastructure/web/exception/ErrorStatusMapper`. Esa separación es la que mantiene la
 regla de que `application` no dependa de `infrastructure`.
+
+## Sincronización
+
+El catálogo se mantiene al día en dos pasos, y ninguno de los dos depende de que el otro
+llegue: Kafka **notifica**, Redis **guarda**.
+
+```
+Kafka (catedra.catalog.{groupId})        Redis (catedra:sync:*)
+        │  "hay una versión 7"                    │
+        ▼                                          ▼
+  el consumidor  ──────► compara versiones ──────► changes:7 + el estado vigente
+        │                                          │
+        │  aplica los cambios, de a una versión    │
+        ▼                                          ▼
+  PostgreSQL: la copia local + el historial de versiones aplicadas
+```
+
+- **El aviso no lleva los datos.** Kafka solo dice qué versión hay disponible; lo que se
+  aplica se decide comparando la versión local con la que publica la cátedra. Por eso
+  perder un aviso no pierde datos: el siguiente, o la comprobación de versiones, recupera
+  el atraso.
+- **Los cambios se aplican en orden**, de a una versión, y **la versión local avanza en la
+  misma transacción** que los cambios. Si el registro de la versión se confirmara aparte, un
+  fallo a mitad de una versión dejaría la versión local adelantada y el catálogo atrás.
+- **Una discontinuidad se reconstruye.** Si la versión local es menor que la más vieja
+  disponible (`oldest-available-version`), faltan los incrementos que la conectan y se pide
+  un snapshot REST en vez de intentar encadenar (anexo §14.2).
+- **Un lock distribuido** en `alumnos:{groupId}:locks:sync` evita que dos sincronizaciones se
+  pisen. Se toma con vencimiento, para que se libere solo si el proceso muere.
+- **El estado y los errores se consultan por API**, sin abrir la base:
+  - `GET /api/sync/status` — versión local, versión remota, ventana disponible, si hay una
+    sincronización en curso y cómo terminó la última.
+  - `GET /api/sync/errors` — los errores recientes, del más nuevo al más viejo.
+
+### Evidencia
+
+| Evidencia del §11 | Dónde se prueba |
+|---|---|
+| 1 · inicialización desde snapshot | `SyncFullSnapshotIntegrationTest` (PostgreSQL + WireMock) |
+| 2 · actualización incremental | `SyncIncrementalIntegrationTest` (PostgreSQL + Redis) |
+| 3 · recuperación por snapshot tras una discontinuidad | `SyncIncrementalIntegrationTest` (el caso del anexo §18.2) |
+| 4 y 5 · búsqueda y filtros sobre la copia local | `CatalogSearchIntegrationTest` |
+| 9 · mensaje duplicado | `CatalogUpdatedKafkaIntegrationTest` (Kafka real) y `ProcessedEventPersistenceTest` |
+
+`./gradlew clean build` corre toda la suite sin acceso a la red de la cátedra: lo que no se
+puede probar sin la VPN —el ACL real de `catedra:sync:*`— queda como evidencia local con
+Redis y ACL equivalentes (`CatalogChangesRedisTest`).
 
 ## Convenciones de commits
 

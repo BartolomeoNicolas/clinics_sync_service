@@ -2,8 +2,8 @@ package com.bartolomeo.clinics.sync;
 
 import java.util.List;
 
-import com.bartolomeo.clinics.sync.application.exception.ApplicationException;
-import com.bartolomeo.clinics.sync.application.exception.ErrorCode;
+import com.bartolomeo.clinics.sync.shared.application.exception.ApplicationException;
+import com.bartolomeo.clinics.sync.shared.application.exception.ErrorCode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

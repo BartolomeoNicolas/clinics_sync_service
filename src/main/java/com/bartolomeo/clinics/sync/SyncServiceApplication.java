@@ -1,6 +1,6 @@
 package com.bartolomeo.clinics.sync;
 
-import com.bartolomeo.clinics.sync.infrastructure.config.RequiredSecretsInitializer;
+import com.bartolomeo.clinics.sync.shared.infrastructure.config.RequiredSecretsInitializer;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
