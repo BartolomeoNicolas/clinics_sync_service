@@ -105,6 +105,14 @@ public class SyncIncrementalUseCaseImpl implements SyncIncrementalUseCase {
         try {
             SyncState state = changesPort.syncState();
 
+            if (local == 0) {
+                // La base local está vacía: no hay nada que encadenar y hay que pedir el
+                // snapshot completo (enunciado §6.1). Da igual dónde empiece la ventana:
+                // sin versión local no hay con qué conectar.
+                log.info("La copia local está vacía: se pide un snapshot completo.");
+                return snapshotUseCase.applyFullSnapshot();
+            }
+
             if (local < state.oldestAvailableVersion()) {
                 // Falta la versión que conecta el estado local con la ventana disponible:
                 // el incremento no se puede encadenar y hay que reconstruir (anexo §14.2).

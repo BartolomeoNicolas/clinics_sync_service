@@ -75,9 +75,23 @@ class SyncIncrementalUseCaseImplTest {
     }
 
     @Test
+    @DisplayName("con la base local vacia se pide un snapshot completo")
+    void conLaBaseVaciaSePideUnSnapshot() {
+        // La version local es cero: no hay nada que encadenar, haya o no ventana.
+        when(versionPort.currentVersion()).thenReturn(0L);
+        estadoRemoto(7, 4);
+        when(snapshotUseCase.applyFullSnapshot()).thenReturn(7L);
+
+        long version = useCase.applyIncremental();
+
+        assertThat(version).isEqualTo(7L);
+        verify(snapshotUseCase).applyFullSnapshot();
+        verify(changesPort, never()).changes(anyLong());
+    }
+
+    @Test
     @DisplayName("si ya hay una sincronizacion en curso no se empieza otra")
-    void siYaHayUnaSincronizacionNoSeEmpiezaOtra() {
-        when(versionPort.currentVersion()).thenReturn(3L);
+    void siYaHayUnaSincronizacionNoSeEmpiezaOtra() {        when(versionPort.currentVersion()).thenReturn(3L);
         estadoRemoto(5, 3);
         when(lock.tryAcquire(any())).thenReturn(false);
 
