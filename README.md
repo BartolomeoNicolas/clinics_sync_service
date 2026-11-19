@@ -24,6 +24,14 @@ com.bartolomeo.clinics.sync.<contexto>/
 **Lo no obvio:** los ports `in` (interfaces de caso de uso) viven en `domain/ports/in`, no en
 `application`. Es contraintuitivo y es la convención del profesor.
 
+## Documentación
+
+| Qué | Dónde |
+|---|---|
+| **ADRs**: las decisiones que explican por qué el servicio está como está | [docs/adr](docs/adr/README.md) |
+| **La sincronización**: cómo se aplica y cuándo se reconstruye | [abajo](#sincronización) |
+| **Errores de la cátedra**: la matriz de traducción, código por código | [abajo](#errores) |
+
 ## Requisitos
 
 - JDK 25. En esta máquina: `~/Facultad/android-studio/jbr` (el Java del sistema es 21).
@@ -165,6 +173,9 @@ Kafka (catedra.catalog.{groupId})        Redis (catedra:sync:*)
 `./gradlew clean build` corre toda la suite sin acceso a la red de la cátedra: lo que no se
 puede probar sin la VPN —el ACL real de `catedra:sync:*`— queda como evidencia local con
 Redis y ACL equivalentes (`CatalogChangesRedisTest`).
+
+`./scripts/evidencias.sh` corre la suite completa y deja el informe en
+`build/evidencias/`: la salida del build y el resultado test por test.
 
 ## Convenciones de commits
 
