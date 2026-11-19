@@ -194,7 +194,30 @@ public class RedisSyncDiagnosticsAdapter implements SyncLockPort, SyncDiagnostic
 
     /** La clave completa: el namespace propio del alumno más el sufijo. */
     private String clave(CatedraRedisSettings settings, String sufijo) {
-        return settings.writeNamespace() + sufijo;
+        return claveDe(settings.writeNamespace(), sufijo);
+    }
+
+    /**
+     * Construye una clave del namespace propio.
+     *
+     * <p><strong>El namespace que da la cátedra viene con el comodín final.</strong> Es el
+     * patrón del ACL ({@code alumnos:{groupId}:*}), no el prefijo de una clave: concatenarlo
+     * tal cual dejaría un asterisco literal en el medio de la clave
+     * ({@code alumnos:{groupId}:*:locks:sync}), que no es la clave que dice el contrato
+     * (§14.6) ni la que esperaría un operador mirando Redis.
+     *
+     * @param namespace namespace propio, con o sin comodín final
+     * @param sufijo    lo que va después del namespace
+     * @return la clave completa
+     */
+    public static String claveDe(String namespace, String sufijo) {
+        String prefijo = namespace == null ? "" : namespace.trim();
+        if (prefijo.endsWith(":*")) {
+            prefijo = prefijo.substring(0, prefijo.length() - 2);
+        } else if (prefijo.endsWith("*")) {
+            prefijo = prefijo.substring(0, prefijo.length() - 1);
+        }
+        return prefijo + sufijo;
     }
 
     /** Lo que se guarda del diagnóstico. */
